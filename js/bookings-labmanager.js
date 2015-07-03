@@ -8,6 +8,8 @@ jQuery(document).ready(function($) {
     var _now = moment();
     var _past = moment().subtract(1, 'month');
 
+    $('#select_client_id').chosen({});
+
     $('#select_client_id').change(function(){
         var user_id = $(this).val();
         if(user_id == ""){
@@ -100,7 +102,7 @@ jQuery(document).ready(function($) {
                 .append('<td>' + m_end.format('HH:mm') + '</td>')
                 .append('<td>' + duration.format('HH:mm') + '</td>')
                 .append('<td>' + booking.resource_name + '</td>')
-                .append('<td>' + booking.resource_type + '</td>');
+                .append('<td style="text-transform: capitalize">' + booking.resource_type + '</td>');
             tbody.append(tr);
         });
         table.append(tbody);

@@ -47,7 +47,7 @@ class Resource_Booking_DB {
         update_option( 'rb_db_version', Resource_Booking_DB::$rb_db_version );
     }
 
-    public function insert_booking($resource_id, $user_id, $username, $start, $end){
+    public function insert_booking($resource_id, $user_id, $username, $start, $end, $details, $closed = 0){
         global $wpdb;
         $booking_table_name = $wpdb->prefix . Resource_Booking_DB::$booking_table;
 
@@ -58,6 +58,8 @@ class Resource_Booking_DB {
             'username' => $username,
             'start' => $start,
             'end' => $end,
+            'details' => $details,
+            'closed' => $closed
         );
 
         $result = $wpdb->insert( $booking_table_name, $data );
@@ -197,10 +199,15 @@ class Resource_Booking_DB {
         $booking_table_name = $wpdb->prefix . Resource_Booking_DB::$booking_table;
 
         $prepared = $wpdb->prepare(
-            "SELECT * from $booking_table_name WHERE resource_id = %d AND start >= %s AND end <= %s;",
+            "SELECT * from $booking_table_name WHERE resource_id = %d AND ((start >= %s AND end <= %s)
+              OR (start < %s AND end > %s)
+              OR (start BETWEEN %s AND %s)
+              OR (end BETWEEN %s AND %s));",
             $resource_id,
-            $start,
-            $end
+            $start, $end,
+            $start, $end,
+            $start, $end,
+            $start, $end
         );
         $booking_rows = $wpdb->get_results( $prepared );
 
@@ -235,7 +242,6 @@ class Resource_Booking_DB {
                 "SELECT b.*, r.resource_name, r.resource_type from $booking_table_name as b
                     LEFT JOIN $resources_table_name as r on (b.resource_id = r.resource_id)
                     WHERE user_id = %d AND start >= %s;",
-
                 $user_id,
                 $start
             );
@@ -321,7 +327,7 @@ class Resource_Booking_DB {
     public function get_resources_list( $resource_type = null ){
         global $wpdb;
         $resources_table_name = $wpdb->prefix . Resource_Booking_DB::$resources_table;
-        if(null == $resources_type) {
+        if(null == $resource_type) {
             // Can't prepare without parameters...
             $sql = "SELECT * FROM $resources_table_name ORDER BY resource_type ASC, resource_name ASC;";
             $resource_rows = $wpdb->get_results( $sql );
@@ -334,6 +340,16 @@ class Resource_Booking_DB {
             $resource_rows = $wpdb->get_results( $prepared );
         }
         return $resource_rows;
+    }
+
+    public function get_resources_types_list( ){
+        global $wpdb;
+        $resources_table_name = $wpdb->prefix . Resource_Booking_DB::$resources_table;
+        // Can't prepare without parameters...
+        $sql = "SELECT resource_type FROM $resources_table_name GROUP BY resource_type ASC
+          ORDER BY resource_type ASC;";
+        $resources_types_rows = $wpdb->get_results( $sql );
+        return $resources_types_rows;
     }
 
     public function delete_resource($resource_id){

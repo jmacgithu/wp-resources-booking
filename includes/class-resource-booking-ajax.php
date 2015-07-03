@@ -26,6 +26,7 @@ class Resource_Booking_Ajax {
         $resource_id    = isset($_POST['resource_id']) ? intval($_POST['resource_id'], 10) : 0;
         $start          = isset($_POST['start']) ? $_POST['start'] : null;
         $end            = isset($_POST['end']) ? $_POST['end'] : null;
+        $details        = isset($_POST['details']) ? $_POST['details'] : "";
 
         // Check if client_id exists (as user) or die
         global $user_ID;
@@ -42,11 +43,14 @@ class Resource_Booking_Ajax {
         // Check if it doesn't overlap any booking or die
         Resource_Booking_Ajax_Common::check_if_not_overlapping_or_die($this->rb_db, $resource_id, null, $start, $end);
 
+        // Sanitize details
+        $details = strip_tags($details);
+
         // Validation done - good to insert data
 
         //Insert the new booking
         $booking = $this->rb_db->insert_booking(
-            $resource_id, $user_ID, $username, $start, $end
+            $resource_id, $user_ID, $username, $start, $end, $details
         );
         if(false === $booking){
             // And die
@@ -58,9 +62,10 @@ class Resource_Booking_Ajax {
                 "id" => $booking->id,
                 "resource_id" => $booking->resource_id,
                 "user_id" => $booking->user_id,
-                "username" => $booking->username,
+                "username" => esc_html($booking->username),
                 "start" => $booking->start,
                 "end" => $booking->end,
+                "details" => esc_html($booking->details),
                 "personal" => true,
             );
             echo json_encode($response);
@@ -113,9 +118,10 @@ class Resource_Booking_Ajax {
                 "id" => $booking->id,
                 "resource_id" => $booking->resource_id,
                 "user_id" => $booking->user_id,
-                "username" => $booking->username,
+                "username" => esc_html($booking->username),
                 "start" => $booking->start,
                 "end" => $booking->end,
+                "details" => esc_html($booking->details),
                 "personal" => true,
             );
             echo json_encode($response);
@@ -205,11 +211,13 @@ class Resource_Booking_Ajax {
         foreach($bookings as $booking){
             if($booking->user_id == $user_ID){
                 $user_id = $booking->user_id;
-                $username = $booking->username;
+                $username = esc_html($booking->username);
+                $details = esc_html($booking->details);
                 $personal = true;
             }else{
                 $user_id = "";
                 $username = "Reserved";
+                $details = "";
                 $personal = false;
             }
             $response->events[] = array(
@@ -219,6 +227,7 @@ class Resource_Booking_Ajax {
                 "username" => $username,
                 "start" => $booking->start,
                 "end" => $booking->end,
+                "details" => $details,
                 "personal" => $personal,
             );
         }
@@ -270,11 +279,14 @@ class Resource_Booking_Ajax {
             $response->bookings[] = array(
                 "booking_id" => $booking->id,
                 "resource_id" => $booking->resource_id,
+                "resource_name" => $booking->resource_name,
+                "resource_type" => $booking->resource_type,
                 "created" => $booking->created,
                 "user_id" => $booking->user_id,
-                "username" => $booking->username,
+                "username" => esc_html($booking->username),
                 "start" => $booking->start,
                 "end" => $booking->end,
+                "details" => esc_html($booking->details),
             );
         }
         echo json_encode($response);

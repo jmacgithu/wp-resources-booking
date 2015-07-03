@@ -35,6 +35,8 @@ jQuery(document).ready(function($) {
         _resourceInfo = {};
     }
 
+    $('#select-resources').chosen({});
+
     $('#select-resources').change(function(){
         var resource_id = $(this).val();
         if(resource_id == ""){
@@ -109,13 +111,14 @@ jQuery(document).ready(function($) {
     $('#select-resources').change();
 
     function newEvent(start, end, jsEvent, view) {
-        if (! validateStartEndDate(start, end)){
+        if (! validateStartEndDate(start, end, true)){
             return;
         }
         if("month" == view.name){
             return;
         }
         var mywhen = $.fullCalendar.formatRange(start, end,'ddd, MMM d, HH:mm');
+        var duration = end.diff(start, 'hours') + "h " + (end.diff(start, 'minutes')%60) + "m";
 
         $('#inputResourceName').html(_resource_name);
         $('#inputResourceId').val(_resource_id);
@@ -123,6 +126,9 @@ jQuery(document).ready(function($) {
         $('#apptStartTime').val(start);
         $('#apptEndTime').val(end);
         $('#when').text(mywhen);
+        $('#duration').text(duration);
+        $('#detailsTextarea').text('')
+            .attr("readonly", false).attr("placeholder", "Leave empty if not needed");
 
         $('#buttonDelete').addClass('hidden');
         $('#buttonSubmit').removeClass('hidden');
@@ -132,7 +138,11 @@ jQuery(document).ready(function($) {
 
     // Makes a POST request to the server to update a reservation
     function updateEvent(event, delta, revertFunc) {
-        if (! validateStartEndDate(event.start, event.end)){
+        if("0" != event.closed){
+            revertFunc();
+            return;
+        }
+        if (! validateStartEndDate(event.start, event.end, true)){
             revertFunc();
             return;
         }
@@ -164,19 +174,32 @@ jQuery(document).ready(function($) {
     }
 
     function deleteEvent(event, jsEvent, view) {
-        if (! validateStartEndDate(event.start, event.end)){
+        if("0" != event.closed){
             return;
+        }
+        var canDelete = true;
+        if (! validateStartEndDate(event.start, event.end, false)){
+            canDelete = false;
         }
         $('#inputResourceName').html(_resource_name);
         $('#inputResourceId').val(_resource_id);
 
         var mywhen = $.fullCalendar.formatRange(event.start, event.end,'ddd, MMM d, HH:mm');
+        var duration = event.end.diff(event.start, 'hours') + "h " + (event.end.diff(event.start, 'minutes')%60) + "m";
+
         $('#apptStartTime').val(event.start);
         $('#apptEndTime').val(event.end);
         $('#when').text(mywhen);
+        $('#duration').text(duration);
+        $('#detailsTextarea').text(event.details)
+            .attr("readonly", true).attr("placeholder", "No details available");
 
         $('#buttonSubmit').addClass('hidden');
-        $('#buttonDelete').removeClass('hidden');
+        if(canDelete){
+            $('#buttonDelete').removeClass('hidden');
+        }else{
+            $('#buttonDelete').addClass('hidden');
+        }
 
         $('#myModal').data('event', event);
 
@@ -213,12 +236,14 @@ jQuery(document).ready(function($) {
         $("#myModal").modal('hide');
         var start   = moment($('#apptStartTime').val()).format(); //'YYYY-MM-DD HH:mm:ss'
         var end     = moment($('#apptEndTime').val()).format();
+        var details = $('#detailsTextarea').val();
 
         var data = {
             'action': 'res_user_insert_booking',
             'resource_id': _resource_id,
             'start': start,
             'end': end,
+            'details': details
         };
         // Post the new event to the server
         jQuery.post(ajax_object.ajax_url, data, function(response_json) {
@@ -269,14 +294,28 @@ jQuery(document).ready(function($) {
         });
     }
 
-    function validateStartEndDate(start, end){
+    function validateStartEndDate(start, end, showErrorDialog){
 //        console.log(start);
 //        console.log(end);
         if(end.isBefore(start)){
             return false;
         }
         if(start.isBefore(new Date())){
-            $('#errorMessageDiv').html("Can not book on past days / hours");
+            if(showErrorDialog) {
+                $('#errorMessageDiv').html("Can not book on past days / hours");
+                $('#modalAlert').modal("show");
+            }
+            return false;
+        }
+        var tempTime = moment(start.format('YYYY-MM-DD') + "T" + _resourceInfo.open_from + "+02:00");
+        if(start.isBefore(tempTime)){
+            $('#errorMessageDiv').html("Can not book before "+ _resourceInfo.open_from);
+            $('#modalAlert').modal("show");
+            return false;
+        }
+        tempTime = moment(start.format('YYYY-MM-DD') + "T" + _resourceInfo.open_till + "+02:00");
+        if(start.isAfter(tempTime)){
+            $('#errorMessageDiv').html("Can not book after "+ _resourceInfo.open_till);
             $('#modalAlert').modal("show");
             return false;
         }
@@ -298,7 +337,7 @@ jQuery(document).ready(function($) {
 
             // End time < open_till
             var end_h_m = end.format("HH:mm");
-            var end_h_m_parsed = moment(end_h_m, "HH:mm")
+            var end_h_m_parsed = moment(end_h_m, "HH:mm");
             var open_till_parsed = moment(_resourceInfo.open_till, "HH:mm");
             if(end_h_m_parsed.isAfter(open_till_parsed)){
                 $('#errorMessageDiv').html("Booking end must be before closing time");
@@ -342,6 +381,10 @@ jQuery(document).ready(function($) {
             return null;
         }
 
+        if(typeof booking.closed == 'undefined'){
+            booking.closed = 0;
+        }
+
         var color, editable;
         if(booking.personal){
             color = "#a4bdfc"; //Blueish
@@ -350,17 +393,24 @@ jQuery(document).ready(function($) {
             color = "#ff887c"; //Red
             editable = false;
         }
+        if(0 != booking.closed){
+            color = "orange"; //Red
+            editable = false;
+            booking.username = booking.details;
+        }
 
         return {
             id: booking.id,
             title: booking.username,
             start: booking.start,
             end: booking.end,
+            details: booking.details,
             color: color,
             editable: editable,
             allDay: false,
             overlap: false,
             personal: booking.personal,
+            closed: booking.closed,
         }
     }
 });

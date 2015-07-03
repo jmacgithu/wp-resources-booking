@@ -70,7 +70,7 @@ class Resource_Booking_Public {
      */
     public function res_booking_shortcode( $atts, $content = "" ) {
         // Extracts attributes and fill the missing with default values
-        $atts = shortcode_atts( array('resource_id' => '0' ), $atts );
+        $atts = shortcode_atts( array('resource_id' => '-1' ), $atts );
         $resource_id = $atts["resource_id"];
 
         $resource = get_post($resource_id);
@@ -87,5 +87,89 @@ class Resource_Booking_Public {
 
         $contents = '<script type="text/javascript">var _resourceInfo = ' . json_encode($resourceInfo) . ';</script>';
         return $contents;
+    }
+
+    public function export_csv() {
+/*        if ('/download/data' != $_SERVER['REQUEST_URI']) {
+            return;
+        }
+
+        Resource_Booking_Ajax_Common::check_if_user_logged_in_or_die();
+
+        // Check if client_id exists (as user) or die
+        global $user_ID;
+        get_currentuserinfo();
+        $username = Resource_Booking_Ajax_Common::get_username_or_die($user_ID);
+
+        $client_id = isset($_REQUEST["client_id"]) ? $_REQUEST["client_id"] : 0;
+        $start = isset($_REQUEST["start"]) ? $_REQUEST["start"] : null;
+        $end = isset($_REQUEST["end"]) ? $_REQUEST["end"] : null;
+
+        if($client_id != $user_ID){
+            // Check if user is a labmanager or die
+            Resource_Booking_Ajax_Common::check_if_labmanager_or_die();
+            // If here, user is labmanager (hopefully)
+        }
+
+        if(null != $start){
+            $start_parsed = Resource_Booking_Ajax_Common::check_if_valid_date_or_die($start);
+        }
+        if(null != $end){
+            $end_parsed = Resource_Booking_Ajax_Common::check_if_valid_date_or_die($end);
+        }
+        if(null != $start && null != $end){
+            $t_s = $start_parsed->getTimestamp();
+            $t_e = $end_parsed->getTimestamp();
+            if($t_e < $t_s){
+                // And die
+                wp_send_json_error(array("message" => "Wrong start - end interval"));
+            }
+        }
+
+
+        $rb_db = new Resource_Booking_DB();
+        $bookings = $rb_db->list_bookings_by_user_id_start_end($client_id, $start, $end);
+
+        foreach ($bookings as $booking) {
+            var_dump($booking);
+            exit();
+        }
+
+
+        $now = gmdate("D, d M Y H:i:s");
+        header("Expires: Tue, 03 Jul 2001 06:00:00 GMT");
+        header("Cache-Control: max-age=0, no-cache, must-revalidate, proxy-revalidate");
+        header("Last-Modified: {$now} GMT");
+
+        // force download
+        header("Content-Type: application/force-download");
+        header("Content-Type: application/octet-stream");
+        header("Content-Type: application/download");
+
+//            header("Content-type: application/x-msdownload",true,200);
+        header("Content-Disposition: attachment; filename=data.csv");
+        header("Pragma: no-cache");
+        header("Expires: 0");
+        echo 'data';
+        wp_die();
+
+            // disposition / encoding on response body
+//            header("Content-Disposition: attachment;filename={$filename}");
+//            header("Content-Transfer-Encoding: binary");
+    */
+    }
+
+    public function array2csv(array &$array){
+        if (count($array) == 0) {
+            return null;
+        }
+        ob_start();
+        $df = fopen("php://output", 'w');
+        fputcsv($df, array_keys(reset($array)));
+        foreach ($array as $row) {
+            fputcsv($df, $row);
+        }
+        fclose($df);
+        return ob_get_clean();
     }
 }

@@ -170,6 +170,7 @@ class Resource_Booking {
 	private function define_admin_hooks() {
 		$plugin_admin = new Resource_Booking_Admin( $this->get_plugin_name(), $this->get_version() );
         $this->loader->add_action( 'init', $plugin_admin, 'generate_resource_menu' );
+        $this->loader->add_action( 'admin_menu', $plugin_admin, 'register_resource_booking_settings');
         $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
         $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 
@@ -178,8 +179,6 @@ class Resource_Booking {
         // Store resource postmeta hook
         $this->loader->add_action( 'save_post_resource', $plugin_admin_metaboxes, 'rb_store_mb_values' );
         $this->loader->add_action( 'delete_post', $plugin_admin_metaboxes, 'delete_resource_reservations' );
-
-//        add_menu_page( $page_title, $menu_title, $capability, $menu_slug, array( $plugin_admin, 'function_name' ), $icon_url, $position );
     }
 
 	/**
@@ -197,6 +196,7 @@ class Resource_Booking {
 
         // Add the shortcode
         add_shortcode( 'resource_booking', array( $plugin_public, 'res_booking_shortcode' ) );
+//        add_action('template_redirect', array($plugin_public, 'export_csv'));
 	}
 
     private function define_ajax_admin_hooks(){
@@ -207,6 +207,7 @@ class Resource_Booking {
         $this->loader->add_action( 'wp_ajax_res_admin_delete_booking', $ajax_callbacks_admin, 'res_admin_delete_booking_callback');
         $this->loader->add_action( 'wp_ajax_res_admin_list_bookings_by_resource_id_start_end', $ajax_callbacks_admin, 'res_admin_list_bookings_by_resource_id_start_end_callback');
         $this->loader->add_action( 'wp_ajax_res_admin_user_bookings', $ajax_callbacks_admin, 'res_admin_user_bookings_callback' );
+        $this->loader->add_action( 'wp_ajax_res_admin_insert_out_of_work', $ajax_callbacks_admin, 'res_admin_insert_out_of_work_callback' );
     }
 
     private function define_ajax_public_hooks(){

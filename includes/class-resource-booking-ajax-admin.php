@@ -31,12 +31,12 @@ class Resource_Booking_Ajax_Admin {
         $client_id      = isset($_POST['client_id']) ? intval($_POST['client_id'], 10) : 0;
         $start          = isset($_POST['start']) ? $_POST['start'] : null;
         $end            = isset($_POST['end']) ? $_POST['end'] : null;
+        $details        = isset($_POST['details']) ? $_POST['details'] : "";
 
         // Check if client_id exists (as user) or die
         $client_username = Resource_Booking_Ajax_Common::get_username_or_die($client_id);
 
         // Check if resource exists or die
-//        Resource_Booking_Ajax_Common::check_resource_id_or_die($this->rb_db, $resource_id);
         $resource_info = Resource_Booking_Ajax_Common::get_resource_info_or_die($this->rb_db, $resource_id, "array");
 
         // Check if valid dates && valid interval
@@ -45,11 +45,14 @@ class Resource_Booking_Ajax_Admin {
         // Check if it doesn't overlap any booking or die
         Resource_Booking_Ajax_Common::check_if_not_overlapping_or_die($this->rb_db, $resource_id, null, $start, $end);
 
+        // Sanitize details
+        $details = strip_tags($details);
+
         // Validation done - good to insert data
 
         // Insert the new booking
         $booking = $this->rb_db->insert_booking(
-            $resource_id, $client_id, $client_username, $start, $end
+            $resource_id, $client_id, $client_username, $start, $end, $details
         );
         if(false === $booking){
             // And die
@@ -61,9 +64,10 @@ class Resource_Booking_Ajax_Admin {
                 "id" => $booking->id,
                 "resource_id" => $booking->resource_id,
                 "user_id" => $booking->user_id,
-                "username" => $booking->username,
+                "username" => esc_html($booking->username),
                 "start" => $booking->start,
                 "end" => $booking->end,
+                "details" => esc_html($booking->details),
                 "personal" => true,
             );
             echo json_encode($response);
@@ -90,7 +94,6 @@ class Resource_Booking_Ajax_Admin {
         $end            = isset($_POST['end']) ? $_POST['end'] : null;
 
         //Check if resource exists
-        //Resource_Booking_Ajax_Common::check_resource_id_or_die($this->rb_db, $resource_id);
         $resource_info = Resource_Booking_Ajax_Common::get_resource_info_or_die($this->rb_db, $resource_id, "array");
 
         // Check if valid dates && valid interval
@@ -116,9 +119,10 @@ class Resource_Booking_Ajax_Admin {
                 "id" => $booking->id,
                 "resource_id" => $booking->resource_id,
                 "user_id" => $booking->user_id,
-                "username" => $booking->username,
+                "username" => esc_html($booking->username),
                 "start" => $booking->start,
                 "end" => $booking->end,
+                "details" => esc_html($booking->details),
                 "personal" => true,
             );
             echo json_encode($response);
@@ -143,7 +147,6 @@ class Resource_Booking_Ajax_Admin {
         $end            = isset($_POST['end']) ? $_POST['end'] : null;
 
         //Check if resource exists
-        //Resource_Booking_Ajax_Common::check_resource_id_or_die($this->rb_db, $resource_id);
         $resource_info = Resource_Booking_Ajax_Common::get_resource_info_or_die($this->rb_db, $resource_id, "array");
 
         // Check if valid dates && valid interval
@@ -204,16 +207,17 @@ class Resource_Booking_Ajax_Admin {
         $response->events = array();
         foreach ($bookings as $booking) {
             $user_id = $booking->user_id;
-            $username = $booking->username;
             $personal = true;
             $response->events[] = array(
                 "id" => $booking->id,
                 "resource_id" => $booking->resource_id,
                 "user_id" => $user_id,
-                "username" => $username,
+                "username" => esc_html($booking->username),
                 "start" => $booking->start,
                 "end" => $booking->end,
+                "details" => esc_html($booking->details),
                 "personal" => $personal,
+                "closed" => $booking->closed,
             );
         }
         echo json_encode($response);
@@ -270,11 +274,98 @@ class Resource_Booking_Ajax_Admin {
                 "resource_type" => $booking->resource_type,
                 "created" => $booking->created,
                 "user_id" => $booking->user_id,
-                "username" => $booking->username,
+                "username" => esc_html($booking->username),
                 "start" => $booking->start,
                 "end" => $booking->end,
+                "details" => esc_html($booking->details),
             );
         }
+        echo json_encode($response);
+        wp_die();
+    }
+
+    public function res_admin_insert_out_of_work_callback(){
+        // Check if user is logged in or die
+        Resource_Booking_Ajax_Common::check_if_user_logged_in_or_die();
+
+        // Check if user is a labmanager or die
+        Resource_Booking_Ajax_Common::check_if_labmanager_or_die();
+        // If here, user is labmanager (hopefully)
+
+        $resource_id    = isset($_POST['resource_id']) ? $_POST['resource_id'] : 'none';
+        $type           = isset($_POST['type']) ? $_POST['type'] : 'none';
+        $reason         = isset($_POST['reason']) ? intval($_POST['reason']) : 0;
+
+        $start          = isset($_POST['start']) ? $_POST['start'] : null;
+        $end            = isset($_POST['end']) ? $_POST['end'] : null;
+
+        Resource_Booking_Ajax_Common::check_if_valid_date_with_time_or_die($start);
+        Resource_Booking_Ajax_Common::check_if_valid_date_with_time_or_die($end);
+
+        if('none' == $resource_id && 'none' == $type){
+            // And die
+            wp_send_json_error(array("message" => "Select at least a resource or a type"));
+        }
+
+        if('none' != $resource_id && 'none' != $type){
+            // And die
+            wp_send_json_error(array("message" => "Select only a resource or a type"));
+        }
+
+        $reason_string = "";
+        switch($reason){
+            case 0: break;
+            case 1: $reason_string = "Clean room closed"; break;
+            case 2: $reason_string = "Resource out of work"; break;
+            case 3: $reason_string = "Holiday"; break;
+            default:
+                wp_send_json_error(array("message" => "Wrong reason"));
+        }
+
+
+        $resources = array();
+        if('none' != $resource_id){
+            // Resource selected
+            if('all' == $resource_id){
+                //Check if resource exists
+                $resourcesA = $this->rb_db->get_resources_list();
+                foreach($resourcesA as $resource){
+                    $resource_id = $resource->resource_id;
+                    $resource_info = Resource_Booking_Ajax_Common::get_resource_info_or_die($this->rb_db, $resource_id, "array");
+                    $resources[] = $resource_info;
+                }
+            }else{
+                $resource_id = intval($resource_id, 10);
+                $resource_info = Resource_Booking_Ajax_Common::get_resource_info_or_die($this->rb_db, $resource_id, "array");
+                $resources[] = $resource_info;
+            }
+        }else{
+            // Type selected
+            $resourcesA = $this->rb_db->get_resources_list($type);
+            foreach($resourcesA as $resource){
+                $resource_id = $resource->resource_id;
+                $resource_info = Resource_Booking_Ajax_Common::get_resource_info_or_die($this->rb_db, $resource_id, "array");
+                $resources[] = $resource_info;
+            }
+        }
+
+        foreach($resources as $resource){
+            $resource_id = $resource->resourceInfo["resource_id"];
+            $bookingsA = $this->rb_db->list_bookings_by_resource_id_start_end($resource_id, $start, $end);
+            foreach($bookingsA as $booking) {
+                $booking_id = $booking->id;
+                $this->rb_db->delete_booking($booking_id, $resource_id, null);
+            }
+
+            if($reason != 0){
+                $booking = $this->rb_db->insert_booking(
+                    $resource_id, 1, $reason_string, $start, $end, $reason_string, $reason
+                );
+            }
+        }
+
+        $response = new StdClass();
+        $response->success = true;
         echo json_encode($response);
         wp_die();
     }

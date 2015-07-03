@@ -100,7 +100,7 @@ jQuery(document).ready(function($) {
                 .append('<td>' + m_end.format('HH:mm') + '</td>')
                 .append('<td>' + duration.format('HH:mm') + '</td>')
                 .append('<td>' + booking.resource_name + '</td>')
-                .append('<td>' + booking.resource_type + '</td>');
+                .append('<td style="text-transform: capitalize">' + booking.resource_type + '</td>');
             tbody.append(tr);
         });
         table.append(tbody);
