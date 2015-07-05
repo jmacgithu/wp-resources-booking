@@ -66,12 +66,14 @@ jQuery(document).ready(function($) {
                 response = response_json;
             }
             if (response.success) {
-                $("#calendar").fullCalendar( 'removeEvents', event.id );
+                $('#myModalLabel').html("Message");
+                $('#errorMessageDiv').html("Operation successful");
             } else {
-                $('#errorMessageDiv').html("Cannot delete the booking for this resource<br />" +
+                $('#myModalLabel').html("Error");
+                $('#errorMessageDiv').html("Cannot perform the requested operation<br />" +
                 response.data.message);
-                $('#modalAlert').modal("show");
             }
+            $('#modalAlert').modal("show");
         });
     });
 

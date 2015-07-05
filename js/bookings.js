@@ -12,6 +12,8 @@ jQuery(document).ready(function($) {
     var _client_id = null;
     var _timeout = null;
 
+    $('[data-toggle="tooltip"]').tooltip()
+
     if(_labmanager){
         $('#select_client_id').chosen({});
     }
@@ -23,6 +25,57 @@ jQuery(document).ready(function($) {
         }
         _client_id = user_id;
         send_data();
+    });
+
+    $('#download-csv').click(function(){
+        var href = "/download/data?";
+        if(_client_id == null){
+            return;
+        }
+        var start = null;
+        var end = null;
+        href += "client_id=" + _client_id + "&";
+        if(_start != null && _end != null){
+            if(_end.isBefore(_start)){
+                return;
+            }
+        }
+        if(_start != null){
+            start = _start.format('YYYY-MM-DD');
+            href += "start=" + start + "&";
+        }
+        if(_end != null){
+            end = _end.format('YYYY-MM-DD');
+            href += "end=" + end + "&";
+        }
+        window.open(href, 'download data', '');
+        return false;
+    });
+
+
+    $('#download-csv-all').click(function(){
+        var href = "/download/data?";
+        if(_client_id == null){
+            _client_id = "";
+        }
+        var start = null;
+        var end = null;
+        href += "client_id=" + _client_id + "&";
+        if(_start != null && _end != null){
+            if(_end.isBefore(_start)){
+                return;
+            }
+        }
+        if(_start != null){
+            start = _start.format('YYYY-MM-DD');
+            href += "start=" + start + "&";
+        }
+        if(_end != null){
+            end = _end.format('YYYY-MM-DD');
+            href += "end=" + end + "&";
+        }
+        window.open(href, 'download data', '');
+        return false;
     });
 
     $('#datetimepickerFrom').datetimepicker(_dateTimePickerOptions);
@@ -56,7 +109,7 @@ jQuery(document).ready(function($) {
     $('#currentWeek').click(function(){
         _timeout = setTimeout(function(){ _timeout = null; }, 500);
         var monday = moment().startOf('isoweek');
-        var sunday = moment(monday).add(7, 'days');
+        var sunday = moment(monday).add(6, 'days');
         $("#datetimepickerFrom").data("DateTimePicker").date(monday);
         $("#datetimepickerTo").data("DateTimePicker").date(sunday);
         _start = monday;

@@ -25,6 +25,7 @@ class Resource_Booking_DB {
     public static function create_tables() {
         global $wpdb;
         $booking_table_name = $wpdb->prefix . Resource_Booking_DB::$booking_table;
+        $resources_table_name = $wpdb->prefix . Resource_Booking_DB::$resources_table;
 
         // Sql query
         $sql = "CREATE TABLE $booking_table_name (
@@ -35,12 +36,25 @@ class Resource_Booking_DB {
 			username varchar(250) NOT NULL,
 			start datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
 			end datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+			details varchar(250) NOT NULL,
+			closed int(11) DEFAULT 0 NOT NULL,
 			UNIQUE KEY id (id)
 		) ENGINE = INNODB
 		DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;";
 
         // Compare with db if there are differences executes the sql
         require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+        dbDelta( $sql );
+
+        $sql = "CREATE TABLE $resources_table_name (
+          id int(11) NOT NULL AUTO_INCREMENT,
+          resource_id int(11) NOT_NULL,
+          resource_name varchar(250) NOT NULL,
+          resource_type varchar(250) NOT NULL,
+          UNIQUE KEY id (id)
+          ) ENGINE = INNODB
+		  DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;";
+
         dbDelta( $sql );
 
         // Update database version
@@ -199,7 +213,8 @@ class Resource_Booking_DB {
         $booking_table_name = $wpdb->prefix . Resource_Booking_DB::$booking_table;
 
         $prepared = $wpdb->prepare(
-            "SELECT * from $booking_table_name WHERE resource_id = %d AND ((start >= %s AND end <= %s)
+            "SELECT * from $booking_table_name WHERE resource_id = %d
+            AND ((start >= %s AND end <= %s)
               OR (start < %s AND end > %s)
               OR (start BETWEEN %s AND %s)
               OR (end BETWEEN %s AND %s));",
@@ -228,38 +243,39 @@ class Resource_Booking_DB {
         $booking_table_name = $wpdb->prefix . Resource_Booking_DB::$booking_table;
         $resources_table_name = $wpdb->prefix . Resource_Booking_DB::$resources_table;
 
-        if(null != $start && null != $end){
+        if(null == $start){
+            $start = '1000-01-01 00:00:00';
+        }
+        if(null == $end){
+            $end = '9999-12-31 23:59:59';
+        }
+        if(null == $user_id) {
             $prepared = $wpdb->prepare(
                 "SELECT b.*, r.resource_name, r.resource_type from $booking_table_name as b
-                    LEFT JOIN $resources_table_name as r on (b.resource_id = r.resource_id)
-                    WHERE user_id = %d AND start >= %s AND end <= %s;",
-                $user_id,
-                $start,
-                $end
-            );
-        }else if(null != $start){
-            $prepared = $wpdb->prepare(
-                "SELECT b.*, r.resource_name, r.resource_type from $booking_table_name as b
-                    LEFT JOIN $resources_table_name as r on (b.resource_id = r.resource_id)
-                    WHERE user_id = %d AND start >= %s;",
-                $user_id,
-                $start
-            );
-        }else if(null != $end){
-            $prepared = $wpdb->prepare(
-                "SELECT b.*, r.resource_name, r.resource_type from $booking_table_name as b
-                    LEFT JOIN $resources_table_name as r on (b.resource_id = r.resource_id)
-                    WHERE user_id = %d AND end <= %s;",
-                $user_id,
-                $end
+                        LEFT JOIN $resources_table_name as r on (b.resource_id = r.resource_id)
+                        WHERE ((DATE(start) >= %s AND DATE(end) <= %s)
+                        OR (DATE(start) <= %s AND DATE(end) >= %s)
+                        OR (DATE(start) BETWEEN %s AND %s)
+                        OR (DATE(end) BETWEEN %s AND %s));",
+                $start, $end,
+                $start, $end,
+                $start, $end,
+                $start, $end
             );
         }else{
-            // All bookings
             $prepared = $wpdb->prepare(
                 "SELECT b.*, r.resource_name, r.resource_type from $booking_table_name as b
-                    LEFT JOIN $resources_table_name as r on (b.resource_id = r.resource_id)
-                    WHERE user_id = %d;",
-                $user_id
+                        LEFT JOIN $resources_table_name as r on (b.resource_id = r.resource_id)
+                        WHERE user_id = %d
+                        AND ((DATE(start) >= %s AND DATE(end) <= %s)
+                        OR (DATE(start) <= %s AND DATE(end) >= %s)
+                        OR (DATE(start) BETWEEN %s AND %s)
+                        OR (DATE(end) BETWEEN %s AND %s));",
+                $user_id,
+                $start, $end,
+                $start, $end,
+                $start, $end,
+                $start, $end
             );
         }
 
@@ -279,14 +295,16 @@ class Resource_Booking_DB {
             $prepared = $wpdb->prepare(
                 "SELECT * from $booking_table_name WHERE
                   resource_id = %d AND (
-                  ((start > %s) AND (start < %s)) OR
-                  ((start < %s) AND (end > %s))
+                  (start BETWEEN %s AND %s) OR
+                  (end BETWEEN %s AND %s) OR
+                  (start < %s AND %s < end) OR
+                  (%s < start AND end < %s))
                   ) LIMIT 1;",
                 $resource_id,
-                $start,
-                $end,
-                $start,
-                $start
+                $start, $end,
+                $start, $start,
+                $start, $end,
+                $start, $start
             );
         }else{
             // A booking can overlap itself on update
@@ -298,15 +316,16 @@ class Resource_Booking_DB {
             $prepared = $wpdb->prepare(
                 "SELECT * from $booking_table_name WHERE
                   resource_id = %d AND id != %d AND (
-                  ((start > %s) AND (start < %s)) OR
-                  ((start < %s) AND (end > %s))
+                  (start BETWEEN %s AND %s) OR
+                  (end BETWEEN %s AND %s) OR
+                  (start < %s AND %s < end) OR
+                  (%s < start AND end < %s))
                   ) LIMIT 1;",
-                $resource_id,
-                $booking_id,
-                $start,
-                $end,
-                $start,
-                $start
+                $resource_id, $booking_id,
+                $start, $end,
+                $start, $start,
+                $start, $end,
+                $start, $start
             );
         }
         $booking_rows = $wpdb->get_results( $prepared );
