@@ -121,9 +121,9 @@ class Resource_Booking_Admin {
         wp_enqueue_style( 'chosen-jquery', $rb_plugin_dir . 'css/bootstrap-chosen.css' );
 
         wp_enqueue_script( "bootstrap", "//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js", array( "jquery" ), "", true );
-        wp_enqueue_script( 'moment', $rb_plugin_dir . 'js/moment.min.js', array( "jquery" ), "", true);
-        wp_enqueue_script( "bootstrap-datetimepicker", $rb_plugin_dir . "js/bootstrap-datetimepicker.min.js", array( "bootstrap", "moment" ), "", true );
-        wp_enqueue_script( "chosen-jquery", $rb_plugin_dir . "js/chosen.jquery.js", array( "jquery" ), "", true );
+        wp_enqueue_script( 'moment', $rb_plugin_dir . 'js/libraries/moment.min.js', array( "jquery" ), "", true);
+        wp_enqueue_script( "bootstrap-datetimepicker", $rb_plugin_dir . "js/libraries/bootstrap-datetimepicker.min.js", array( "bootstrap", "moment" ), "", true );
+        wp_enqueue_script( "chosen-jquery", $rb_plugin_dir . "js/libraries/chosen.jquery.js", array( "jquery" ), "", true );
 
         wp_enqueue_script( 'calendarOpts', $rb_plugin_dir . 'js/calendarOpts.js', array( 'jquery' ), "", true );
         wp_enqueue_script( 'resources-management', $rb_plugin_dir . 'js/resources-management.js', array( 'jquery' ), "", true );

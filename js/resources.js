@@ -132,6 +132,9 @@ jQuery(document).ready(function($) {
 
         $('#buttonDelete').addClass('hidden');
         $('#buttonSubmit').removeClass('hidden');
+        if(_labmanager){
+            $('#user-list').show();
+        }
 
         $('#myModal').modal('show');
     }
@@ -147,7 +150,7 @@ jQuery(document).ready(function($) {
             return;
         }
         var data = {
-            'action': 'res_user_update_booking',
+            'action': _action_update,
             'id': event.id,
             'resource_id': _resource_id,
             'start': event.start.format(),
@@ -195,21 +198,23 @@ jQuery(document).ready(function($) {
             .attr("readonly", true).attr("placeholder", "No details available");
 
         $('#buttonSubmit').addClass('hidden');
-        if(canDelete){
+        if(canDelete && (event.personal || _labmanager)){
             $('#buttonDelete').removeClass('hidden');
         }else{
             $('#buttonDelete').addClass('hidden');
         }
+        if(_labmanager){
+            $('#user-list').hide();
+        }
 
         $('#myModal').data('event', event);
-
         $('#myModal').modal('show');
     }
 
     function getEvents(start, end, timezone, callback) {
         $('#calendar').fullCalendar( 'removeEvents' );
         var data = {
-            'action': 'res_list_bookings_by_resource_id_start_end',
+            'action': _action_list_bookings,
             'resource_id': _resource_id,
             'start': start.format('YYYY-MM-DD'),
             'end': end.format('YYYY-MM-DD'),
@@ -234,13 +239,15 @@ jQuery(document).ready(function($) {
 
     function doSubmit(){
         $("#myModal").modal('hide');
+        var client_id = $('#select_client_id').val();
         var start   = moment($('#apptStartTime').val()).format(); //'YYYY-MM-DD HH:mm:ss'
         var end     = moment($('#apptEndTime').val()).format();
         var details = $('#detailsTextarea').val();
 
         var data = {
-            'action': 'res_user_insert_booking',
+            'action': _action_insert,
             'resource_id': _resource_id,
+            'client_id': client_id,
             'start': start,
             'end': end,
             'details': details
@@ -270,7 +277,7 @@ jQuery(document).ready(function($) {
         var event = $("#myModal").data('event');
 
         var data = {
-            'action': 'res_user_delete_booking',
+            'action': _action_delete,
             'id': event.id,
             'resource_id': _resource_id,
             'start': event.start.format(),
